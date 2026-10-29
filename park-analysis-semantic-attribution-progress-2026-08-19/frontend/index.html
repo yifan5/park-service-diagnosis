@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="公园评论方面级识别、情感评价与问题归因分析平台">
+  <title>公园评论分析平台</title>
+  <link rel="stylesheet" href="/styles.css?v=semantic-attribution-3">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">22</div>
+      <div><strong>公园评论分析</strong><span>方面级评价与问题归因</span></div>
+    </div>
+    <div class="top-actions">
+      <span id="providerBadge" class="status-pill">模型未连接</span>
+      <button id="resetButton" class="button ghost" type="button">新建任务</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="uploadView" class="view active">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">PARK REVIEW WORKSPACE</p>
+          <h1>从评论数据到可追溯的问题摘要</h1>
+          <p class="muted">上传包含公园和评论的文件，模型按 22 类服务输出 0—5 分方面结果，并从负面评论直接生成归因。</p>
+        </div>
+        <div class="intro-rule"><span>0</span><small>未涉及</small><span>1—2</span><small>负面</small><span>3</span><small>中性</small><span>4—5</span><small>正面</small></div>
+      </div>
+
+      <div class="upload-grid">
+        <section class="panel upload-panel">
+          <div class="panel-head"><div><h2>上传原始文件</h2><p>支持 .xlsx、.xls、.csv；其他列会原样保留但不会发送给模型。</p></div></div>
+          <label id="dropZone" class="drop-zone" for="fileInput">
+            <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
+            <span class="drop-icon">↑</span>
+            <strong id="fileName">选择或拖入文件</strong>
+            <small id="fileMeta">必需列：公园名/公园、评论；其他列自动保留</small>
+          </label>
+          <div id="mappingBox" class="mapping-box hidden">
+            <div class="panel-head compact"><div><h3>选择必需列</h3><p>自动识别失败时，为三个分析字段指定原始列。</p></div></div>
+            <div class="mapping-grid">
+              <label>公园<select id="parkColumn"></select></label>
+              <label>评论<select id="commentColumn"></select></label>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel settings-panel">
+          <div class="panel-head"><div><h2>模型调用设置</h2><p>每批条数与最大字符数同时生效。</p></div></div>
+          <div class="field-grid">
+            <label>每批条数<input id="batchSize" type="number" min="1" max="500" value="20"></label>
+            <label>每批最大字符<input id="maxChars" type="number" min="2000" max="100000" value="24000"></label>
+          </div>
+          <details class="advanced" open>
+            <summary>高级模型设置</summary>
+            <div class="field-grid advanced-grid">
+              <label>提供方<select id="provider"><option value="codex">Codex 运行器</option><option value="mock">Mock 演示</option></select></label>
+              <label>模型<input id="model" placeholder="留空使用 Codex 默认模型"></label>
+              <label>温度（API 预留）<input id="temperature" type="number" min="0" max="2" step="0.1" value="0.1"></label>
+              <label>最大输出 Token（API 预留）<input id="maxOutputTokens" type="number" min="512" max="16000" value="4096"></label>
+              <label>并发批次<input id="concurrency" type="number" min="1" max="4" value="1"></label>
+              <label>失败重试<input id="retries" type="number" min="0" max="5" value="2"></label>
+              <label>单次超时（秒）<input id="timeoutSeconds" type="number" min="20" max="900" value="180"></label>
+            </div>
+          </details>
+          <div class="callout"><span class="callout-dot"></span><span>Codex 凭证只在后端使用。未配置运行器时可切换 Mock 演示链路。</span></div>
+          <button id="startButton" class="button primary wide" type="button" disabled>开始分析</button>
+          <p id="uploadError" class="error-text hidden"></p>
+        </section>
+      </div>
+
+      <section class="panel contract-panel">
+        <div class="panel-head"><div><h2>输出文件</h2><p>任务完成后可从整体概况下载。</p></div></div>
+        <div class="output-list">
+          <div><b>初步分析结果</b><span>原始全部列 + 22 个方面评分</span></div>
+          <div><b>筛选明细</b><span>仅 1—2 分的方面长表，含原始行号与评论</span></div>
+          <div><b>问题归因总结</b><span>公园 × 方面负面摘要与证据明细</span></div>
+        </div>
+      </section>
+      <section class="panel import-panel">
+        <div class="panel-head"><div><h2>初步结果归因分析</h2><p>上传包含 22 类方面评分的初步结果，先生成提及率—满意度概况，后台使用 Codex 按 DS 服务范围提炼负面问题。</p></div></div>
+        <div class="import-row"><label class="import-file"><input id="initialResultInput" type="file" accept=".xlsx,.xls,.csv"><span id="initialResultName">选择初步结果文件</span></label><button id="importResultButton" class="button primary" type="button" disabled>开始归因分析</button></div>
+        <p id="importError" class="error-text hidden"></p>
+      </section>
+    </section>
+
+    <section id="progressView" class="view">
+      <div class="page-intro compact-intro"><div><p class="eyebrow">ANALYSIS JOB</p><h1>正在分析上传数据</h1><p id="progressFile" class="muted">任务准备中</p></div><button id="progressNewButton" class="button secondary" type="button">新建任务</button></div>
+      <section class="panel progress-panel">
+        <div class="progress-main"><div class="progress-ring" id="progressRing"><span id="progressPercent">0%</span></div><div><p class="eyebrow" id="progressPhase">排队中</p><h2 id="progressTitle">等待开始</h2><p id="progressMessage" class="muted">文件上传完成后，任务会按批次处理。</p></div></div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <div class="progress-stats"><div><b id="processedRows">0 / 0</b><span>已处理行</span></div><div><b id="batchCount">0 / 0</b><span>完成批次</span></div><div><b id="failedCount">0</b><span>失败批次</span></div><div><b id="attributionCount">0 / 0</b><span>归因单元</span></div></div>
+        <div id="progressErrors" class="error-list hidden"></div>
+      </section>
+    </section>
+
+    <section id="overviewView" class="view">
+      <div class="page-intro compact-intro"><div><p class="eyebrow">01 OVERVIEW</p><h1>整体概况</h1><p id="overviewSub" class="muted">分析结果已生成。</p></div><button id="overviewNewButton" class="button secondary" type="button">新建任务</button></div>
+      <div id="kpiGrid" class="kpi-grid"></div>
+      <section class="panel overview-panel">
+        <div class="panel-head"><div><h2>提及率—满意度分布</h2><p>点击圆点查看具体数值，再进入对应的问题归因。提及率按评分大于 0 计算，0 分不进入满意度。</p></div><div class="download-group"><button class="button secondary download" data-kind="initial">下载初步结果</button><button class="button secondary download" data-kind="screening">下载筛选明细</button><button class="button primary download" data-kind="attribution">下载归因总结</button></div></div>
+        <div class="scatter-layout"><aside class="scatter-details"><div class="scatter-search"><label for="scatterSearch">定位公园或服务</label><input id="scatterSearch" type="search" placeholder="输入名称搜索"><div id="scatterCandidates" class="scatter-candidates"></div></div><div id="scatterDetails"></div></aside><div class="scatter-stage"><div class="scatter-toolbar"><div class="segmented"><button class="segment active" data-scatter-mode="park">按公园</button><button class="segment" data-scatter-mode="aspect">按服务</button></div><label id="scatterSelectLabel">选择公园<select id="scatterSelect"></select></label></div><div class="scatter-chart" id="scatterChart"><div class="scatter-y-label">满意度</div><div class="scatter-plot" id="scatterPlot"><div class="axis-grid horizontal h1"></div><div class="axis-grid horizontal h2"></div><div class="axis-grid horizontal h3"></div><div class="axis-grid horizontal h4"></div><div class="axis-grid vertical v1"></div><div class="axis-grid vertical v2"></div><div class="axis-grid vertical v3"></div><div class="axis-grid vertical v4"></div><div class="axis-label y-top">5.0</div><div class="axis-label y-mid-high">4.0</div><div class="axis-label y-mid">3.0</div><div class="axis-label y-low">2.0</div><div class="axis-label y-bottom">0</div><div id="scatterPoints"></div><div class="axis-caption x-caption">提及率</div><div class="axis-caption x-zero">0%</div><div class="axis-caption x-quarter">25%</div><div class="axis-caption x-half">50%</div><div class="axis-caption x-three-quarter">75%</div><div class="axis-caption x-full">100%</div></div><div class="scatter-scale"><span>满意度</span><i></i><span>低：红橙</span><span>3分：橘黄</span><span>高：蓝</span></div></div></div></div>
+      </section>
+      <section id="attributionProgressPanel" class="panel attribution-progress-panel"><div class="panel-head"><div><h2>问题归因生成进度</h2><p id="attributionProgressText">概况已生成，正在使用 Codex 提炼问题。</p></div><strong id="attributionProgressCount">0 / 0</strong></div><div class="attribution-steps" id="attributionSteps"><span data-stage-index="1">语义梳理</span><span data-stage-index="2">范围筛选</span><span data-stage-index="3">相似合并</span><span data-stage-index="4">结果校验</span></div><div class="progress-track attribution-track"><div id="attributionProgressBar" class="progress-fill"></div></div><div class="attribution-progress-meta"><span id="attributionStageText">等待归因</span><span id="attributionStageCount">0 / 0</span><span id="attributionFailedText">失败 0</span></div><div id="attributionProgressErrors" class="progress-errors hidden"></div></section>
+      <section class="overview-two-col">
+        <section class="panel park-panel"><div class="panel-head"><div><h2>公园对比</h2><p>点击行查看该公园的负面归因。</p></div></div><div id="parkTable" class="table-wrap"></div></section>
+        <section class="panel attribution-panel"><div class="panel-head"><div><h2>问题归因入口</h2><p>存在一条 1—2 分评论即可进入。</p></div></div><div id="attributionList" class="attribution-list"></div></section>
+      </section>
+    </section>
+
+    <section id="attributionView" class="view">
+      <div class="page-intro compact-intro"><div><p class="eyebrow">02 ATTRIBUTION</p><h1>问题归因</h1><p id="attributionSub" class="muted">按公园和服务查看模型摘要与原文证据。</p></div><button id="backOverviewButton" class="button secondary" type="button">返回整体概况</button></div>
+      <section class="panel attribution-browser">
+        <div class="browser-toolbar"><label>公园<select id="attributionPark"></select></label><label>方面<select id="attributionAspect"></select></label><label class="search-field">搜索<input id="attributionSearch" placeholder="摘要、评论或行号"></label></div>
+        <div id="attributionDetail" class="attribution-detail"></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js?v=semantic-attribution-3"></script>
+</body>
+</html>
